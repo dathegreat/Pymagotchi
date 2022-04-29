@@ -9,13 +9,19 @@ from pygame.locals import (
     KEYDOWN,
     QUIT,
 )
-
+class Menu:
+    def __init__(self, font_size, color, background, item_text):
+        self.item_text = item_text
+        self.font = pygame.font.Font('press_start.ttf', font_size)
+        self.items = []
+        for text in item_text:
+            self.items.append(self.font.render(text, False, color, background))
 #creates a dog object based on dog number
 class Dog:
     def __init__(self, number):
         if number == 1:
             self.image = pygame.image.load("dog1.png").convert()
-            self.image = pygame.transform.scale(self.image, [SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2])
+            self.image = pygame.transform.scale(self.image, [RESOLUTION[0] / 2, RESOLUTION[1] / 2])
         self.surf = self.image
         self.rect = self.surf.get_rect()
         self.height = self.image.get_height()
@@ -25,6 +31,7 @@ class Dog:
 class Scene:
     def __init__(self, running):
         self.running = running
+
     def key_handler(keys):
         pass
 
@@ -36,11 +43,11 @@ class Scene:
 
 #home class handles rendering and input for main game screen
 class Home(Scene):
-    menu = False
 
     def __init__(self, running):
         super(Home, self).__init__(running)
         self.current_dog = Dog(1)
+        self.menu = Menu(16, WHITE, None, ["Feed", "Play", "Love"])
 
     def key_handler(self, keys):
         #check for new events
@@ -60,8 +67,15 @@ class Home(Scene):
                 elif event.type == QUIT:
                     self.running = False
             #draw current dog on screen
-            self.current_dog.rect = [SCREEN_WIDTH / 20, SCREEN_HEIGHT / 2 - self.current_dog.height / 2]
+            self.current_dog.rect = [PIXEL * 5, screen.get_rect().center[1] / 2]
             screen.blit(self.current_dog.surf, self.current_dog.rect)
+            #draw menu on screen
+            for i in range(len(self.menu.items)):
+                screen.blit(
+                    self.menu.items[i],
+                    [ PIXEL * 5,
+                    ( (RESOLUTION[1] / 2) + self.menu.items[i].get_height() * (i+1) ) 
+                    ])
             #call new frame to render
             pygame.display.flip()
 
@@ -69,9 +83,12 @@ class Home(Scene):
 #initialize pygame module
 pygame.init()
 #define screen size
-SCREEN_WIDTH = 700
-SCREEN_HEIGHT = 700
-screen = pygame.display.set_mode([SCREEN_WIDTH, SCREEN_HEIGHT])
+RESOLUTION = (500,500)
+#define pixel size aka grid size for object placement on screen
+PIXEL = RESOLUTION[0] / 100
+screen = pygame.display.set_mode(RESOLUTION)
+#define colors
+WHITE = (255,255,255)
 #load home scene and call its main render loop
 current_scene = Home(True)
 current_scene.loop()
