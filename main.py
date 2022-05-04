@@ -52,18 +52,21 @@ class Menu:
 #defines hud surfaces
 class HUD:
     def __init__(self, dog):
-        self.font_size = 28
+        self.font_size = 24
         self.item_text = ["➕", "❤", "☺"]
         self.font = pygame.font.Font('press_start.ttf', self.font_size)
+        self.cross_icon = pygame.image.load("cross_icon.png").convert()
+        self.heart_icon = pygame.image.load("heart_icon.png").convert()
+        self.happy_icon = pygame.image.load("happy_icon.png").convert()
         self.items = [
-            ["➕", dog.stats.data["health"], (255,255,255)],
-            ["❤", dog.stats.data["love"], (255,0,0)],
-            ["☺", dog.stats.data["happy"], (255,255,255)]
+            [self.cross_icon, str(dog.stats.data["health"]), (0,255,0)],
+            [self.heart_icon, str(dog.stats.data["love"]), (255,0,0)],
+            [self.happy_icon, str(dog.stats.data["happy"]), (255,255,0)]
         ]
         self.surfaces = []
         for item in self.items:
-            self.surfaces.append([self.font.render(item[0], False, item[2], None), 
-            self.font.render(item[0], False, item[2], None)])
+            self.surfaces.append([item[0], 
+            self.font.render(item[1], False, item[2], None)])
 
 #creates a dog object based on dog number
 class Dog:
@@ -93,11 +96,10 @@ class Scene:
 
 #home class handles rendering and input for main game screen
 class Home(Scene):
-
     def __init__(self, running):
         super(Home, self).__init__(running)
         self.current_dog = Dog(1)
-        self.menu = Menu(16, WHITE, None, ["Feed (F)", "Play (P)", "Love (L)"])
+        self.menu = Menu(20, WHITE, None, ["Feed (F)", "Play (P)", "Love (L)"])
         self.hud = HUD(self.current_dog)
     def key_handler(self, keys):
         #check for new events
@@ -126,7 +128,19 @@ class Home(Scene):
                 screen.blit(
                     self.menu.items[i],
                     [ PIXEL * 50,
-                    ( (RESOLUTION[1] / 2) + self.menu.items[i].get_height() * (i) ) 
+                    ( (RESOLUTION[1] / 2) + self.menu.items[i].get_height() * (i * 1.5) ) 
+                    ])
+            #draw HUD on screen
+            for i in range(len(self.hud.surfaces)):
+                screen.blit(
+                    self.hud.surfaces[i][0],
+                    [ self.hud.surfaces[i][1].get_width() * (i * 2) + PIXEL * 10,
+                    ( PIXEL * 10) 
+                    ])
+                screen.blit(
+                    self.hud.surfaces[i][1],
+                    [ self.hud.surfaces[i][1].get_width() * (i * 2) + PIXEL * 15,
+                    ( PIXEL * 10) 
                     ])
             #call new frame to render
             pygame.display.flip()
