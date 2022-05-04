@@ -1,4 +1,4 @@
-import pygame, datetime, random
+import pygame, time, random, json, os.path
 from pygame.locals import (
     K_UP,
     K_DOWN,
@@ -9,6 +9,38 @@ from pygame.locals import (
     KEYDOWN,
     QUIT,
 )
+
+#defines dog stats per dog
+class Stats:
+    def __init__(self):
+        #stats for dog gameplay
+        self.data = {
+            "health": 100,
+            "love": 100,
+            "happy": 100,
+            "current": int(time.time()),
+            "last": int(time.time()),
+            "idle": 0
+        }
+        #if game has been played before, load stats from save file
+        if os.path.exists("data.json"):
+            with open("data.json") as read_file:
+                data_json = json.load(read_file)
+                self.data = data_json
+                self.data['current'] = int(time.time())
+                self.data['idle'] = self.data['current'] - self.data['last']
+        #save new data or if first time playing, create save file with init data
+        with open("data.json", "w+") as write_file:
+            json.dump(self.data, write_file)
+        
+    #store current login time
+    def exit_update(self):
+        self.data['last'] = self.data['current']
+        with open("data.json", "w+") as write_file:
+            json.dump(self.data, write_file)
+
+        
+#defines menu surfaces based on input text/color
 class Menu:
     def __init__(self, font_size, color, background, item_text):
         self.item_text = item_text
@@ -16,6 +48,23 @@ class Menu:
         self.items = []
         for text in item_text:
             self.items.append(self.font.render(text, False, color, background))
+
+#defines hud surfaces
+class HUD:
+    def __init__(self, dog):
+        self.font_size = 28
+        self.item_text = ["➕", "❤", "☺"]
+        self.font = pygame.font.Font('press_start.ttf', self.font_size)
+        self.items = [
+            ["➕", dog.stats.data["health"], (255,255,255)],
+            ["❤", dog.stats.data["love"], (255,0,0)],
+            ["☺", dog.stats.data["happy"], (255,255,255)]
+        ]
+        self.surfaces = []
+        for item in self.items:
+            self.surfaces.append([self.font.render(item[0], False, item[2], None), 
+            self.font.render(item[0], False, item[2], None)])
+
 #creates a dog object based on dog number
 class Dog:
     def __init__(self, number):
@@ -26,6 +75,7 @@ class Dog:
         self.rect = self.surf.get_rect()
         self.height = self.image.get_height()
         self.width = self.image.get_width()
+        self.stats = Stats()
     
 #superclass for all loaded scenes
 class Scene:
@@ -47,8 +97,8 @@ class Home(Scene):
     def __init__(self, running):
         super(Home, self).__init__(running)
         self.current_dog = Dog(1)
-        self.menu = Menu(16, WHITE, None, ["Feed", "Play", "Love"])
-
+        self.menu = Menu(16, WHITE, None, ["Feed (F)", "Play (P)", "Love (L)"])
+        self.hud = HUD(self.current_dog)
     def key_handler(self, keys):
         #check for new events
          for key in keys:
@@ -64,8 +114,10 @@ class Home(Scene):
                 if event.type == KEYDOWN:
                     if event.key == K_ESCAPE:
                         self.running = False
+                        self.current_dog.stats.exit_update()
                 elif event.type == QUIT:
                     self.running = False
+                    self.current_dog.stats.exit_update()
             #draw current dog on screen
             self.current_dog.rect = [PIXEL * 5, screen.get_rect().center[1] / 2]
             screen.blit(self.current_dog.surf, self.current_dog.rect)
@@ -73,8 +125,8 @@ class Home(Scene):
             for i in range(len(self.menu.items)):
                 screen.blit(
                     self.menu.items[i],
-                    [ PIXEL * 5,
-                    ( (RESOLUTION[1] / 2) + self.menu.items[i].get_height() * (i+1) ) 
+                    [ PIXEL * 50,
+                    ( (RESOLUTION[1] / 2) + self.menu.items[i].get_height() * (i) ) 
                     ])
             #call new frame to render
             pygame.display.flip()
