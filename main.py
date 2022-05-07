@@ -190,90 +190,65 @@ class Scene:
     def loop(self):
         pass
          
-class Mini_Game(Scene):
-    def __init__(self, running):
-       super(Mini_Game, self).__init__(running)
-       self.game_list = [
-           Reaction(),
-       ]
-       #pick a random game from the list to load
-       self.game = self.game_list[random.randint(0, len(self.game_list) - 1)]
-    def loop(self):
-        current_scene.running = False
-        self.game.loop()
-        current_scene.running = True
+# class Mini_Game(Scene):
+#     def __init__(self, running):
+#        super(Mini_Game, self).__init__(running)
+#        self.game_list = [
+#            Maze()
+#        ]
+#        #pick a random game from the list to load
+#        self.game = self.game_list[random.randint(0, len(self.game_list) - 1)]
+#     def loop(self):
+#         current_scene.running = False
+#         self.game.loop()
+#         current_scene.running = True
 
-class Reaction(Mini_Game):
+class Wall:
+    def __init__(self, x, y, orientation):
+        self.x = x
+        self.y = y
+        self.orientation = orientation
+        #define possible width/height
+        self.short_side = PIXEL * 2
+        self.long_side = PIXEL * 20
+        #set wall to be taller than wide if vertical, else wider than tall
+        self.width = self.short_side if self.orientation == "vertical" else self.long_side
+        self.height = self.long_side if self.orientation == "vertical" else self.short_side
+        #set corner pixel to be at highest rect point if vertical
+        if self.orientation == "vertical":
+            self.y = self.y - self.height
+        #create rect from wall specs
+        self.rect = (self.x, self.y, self.width, self.height)
+
+class Maze:
     def __init__(self):
-        self.font_size = 16
-        self.font = pygame.font.Font('press_start.ttf', self.font_size)
-        self.messages = [
-            "Hit Any Key When Square Flashes",
-            "Ready?",
-            "Set...",
-            "GO!"
-        ]
-    def current_time(self):
-        return time.time()
-    def sleep(self):
-        pygame.time.wait(int(random.uniform(0.6, 3) * 1000))
-    def clear_screen(self):
-        screen.fill(BLACK)
-    def flash(self):
-        pygame.draw.rect(screen, WHITE, 
-            (RESOLUTION[0]/2 - PIXEL * 50, 
-            RESOLUTION[1]/2 - PIXEL * 50, 
-            PIXEL * 50, PIXEL * 50)
-        )
-    def display_message(self, message):
-        self.clear_screen()
-        screen.blit(
-            self.font.render(message, False, WHITE, BLACK),
-            [PIXEL * 5, RESOLUTION[1]/2]
-        )
-    def loop(self):
-        for i in range(4):
-            for event in pygame.event.get():
-                if event.type == QUIT:
-                    self.running = False
-                    current_scene.current_dog.stats.exit_update()
-            if i < 3:
-                self.clear_screen()
-                self.display_message(self.messages[i])
-                pygame.display.flip()
-                self.sleep()
-            elif i == 3:
-                self.clear_screen()
-                self.flash()
-                self.display_message(self.messages[i])
-                pygame.display.flip()
-                self.t1 = self.current_time()
-                self.key_pressed = False
-                while self.key_pressed == False:
-                    for event in pygame.event.get():
-                        if event.type == KEYDOWN:
-                            self.t2 = self.current_time()
-                            self.key_pressed == True
-                            print("pressed")
-                            break
-                        elif event.type == QUIT:
-                            self.running = False
-                            current_scene.current_dog.stats.exit_update()
-                            break
-                diff = self.t2 - self.t1
-                self.clear_screen()
-                self.display_message("Your reaction time was {d:.2f} ms".format(d = diff*1000))
-                pygame.display.flip()
-                self.sleep()
-                deviation = 400 - (diff*1000)
-                self.clear_screen()
-                if deviation > 0:
-                    self.display_message("You Win!")
-                    self.running = False
-                else:
-                    self.display_message("Try Again")
-                    self.loop()
-                self.sleep()
+        #holds rects for each wall
+        self.walls = []
+        self.x = 0
+        self.y = RESOLUTION[1]
+    def generate_wall(self):
+        #choose a random orientation for new wall
+        self.orientation = "vertical" if random.random() > 0.5 else "horizontal"
+        #if previous wall hit bottom of screen, make new wall vertical
+        if self.y >= RESOLUTION[1]:
+            self.orientation = "vertical"
+        #if previous wall hit left side of screen, make new wall horizontal
+        elif self.y <= 0:
+            self.orientation = "horizontal"
+        self.wall = Wall(self.x, self.y, self.orientation)
+        self.walls.append(self.wall.rect)
+        return (self.wall)
+    def generate_maze(self):
+        for i in range(50):
+            wall = self.generate_wall()
+            if wall.orientation == "vertical":
+                self.x += wall.width
+                self.y -= wall.height
+            else:
+                self.x += wall.width
+        return self.walls
+                
+
 #home class handles rendering and input for main game screen
 class Home(Scene):
     def __init__(self, running):
@@ -346,9 +321,6 @@ class Home(Scene):
                 False, BLACK, WHITE)
             #once sub-menu item is selected, play minigame, update stats and hud accordingly and clear menu
             if key == K_RETURN:
-                self.mini_game = Mini_Game(True)
-                self.running = False
-                self.mini_game.loop()
                 if self.flags['feed']:
                     self.current_dog.feed()
                 elif self.flags['play']:
@@ -357,6 +329,9 @@ class Home(Scene):
                     self.current_dog.love()
                 self.hud.update(self.current_dog)
                 self.clear_flags()
+                self.maze = Maze()
+                self.walls = self.maze.generate_maze()
+                self.flags['mini_game'] = True 
     #clear every stat-related flag
     def clear_flags(self):
         for flag in self.flags:
@@ -422,6 +397,9 @@ class Home(Scene):
                         [ PIXEL * 20 * (i * 1.5 if i < 2 else (i-2) * 1.5) + PIXEL * 20, #skip line after two items
                         ( RESOLUTION[0] - PIXEL * (20 if i < 2 else 10 )) #skip line after two items
                         ])
+            if self.flags['mini_game']:
+                for wall in self.walls:
+                    screen.fill(WHITE, wall)
             
             #call new frame to render
             pygame.display.flip()
