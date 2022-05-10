@@ -189,20 +189,8 @@ class Scene:
 
     def loop(self):
         pass
-         
-# class Mini_Game(Scene):
-#     def __init__(self, running):
-#        super(Mini_Game, self).__init__(running)
-#        self.game_list = [
-#            Maze()
-#        ]
-#        #pick a random game from the list to load
-#        self.game = self.game_list[random.randint(0, len(self.game_list) - 1)]
-#     def loop(self):
-#         current_scene.running = False
-#         self.game.loop()
-#         current_scene.running = True
 
+#defines a single wall in the procedurally generated maze
 class Wall:
     def __init__(self, x, y, orientation):
         self.x = x
@@ -210,42 +198,63 @@ class Wall:
         self.orientation = orientation
         #define possible width/height
         self.short_side = PIXEL * 2
-        self.long_side = PIXEL * 20
+        self.long_side = PIXEL * 10
         #set wall to be taller than wide if vertical, else wider than tall
         self.width = self.short_side if self.orientation == "vertical" else self.long_side
         self.height = self.long_side if self.orientation == "vertical" else self.short_side
-        #set corner pixel to be at highest rect point if vertical
-        if self.orientation == "vertical":
-            self.y = self.y - self.height
-        #create rect from wall specs
-        self.rect = (self.x, self.y, self.width, self.height)
+    #returns the end of the wall, which is used to position the next wall
+    def get_rect(self):
+        return pygame.Rect(self.x, self.y, self.width, self.height)
 
 class Maze:
     def __init__(self):
         #holds rects for each wall
         self.walls = []
-        self.x = 0
-        self.y = RESOLUTION[1]
-    def generate_wall(self):
+        #define initial placement coordinates and direction
+        self.x = PIXEL * 4
+        self.y = RESOLUTION[1] - PIXEL * 4
+        self.orientation = "horizontal"
+    def generate_wall(self, orientation):
         #choose a random orientation for new wall
-        self.orientation = "vertical" if random.random() > 0.5 else "horizontal"
-        #if previous wall hit bottom of screen, make new wall vertical
-        if self.y >= RESOLUTION[1]:
-            self.orientation = "vertical"
-        #if previous wall hit left side of screen, make new wall horizontal
-        elif self.y <= 0:
-            self.orientation = "horizontal"
+        self.orientation = orientation or "vertical" if random.random() > 0.5 else "horizontal"
         self.wall = Wall(self.x, self.y, self.orientation)
-        self.walls.append(self.wall.rect)
+        #return generated wall
         return (self.wall)
     def generate_maze(self):
-        for i in range(50):
-            wall = self.generate_wall()
+        self.x_direction = 1
+        self.y_direction = 1
+        for i in range(100):
+            #if previous wall hit top or bottom of screen, make new wall vertical and change direction
+            if self.y >= RESOLUTION[1] or self.y <= 0:
+                if self.y > RESOLUTION[1]:
+                    self.y = RESOLUTION[1]
+                elif self.y < 0:
+                    self.y = 0
+                self.orientation = "vertical"
+                self.y_direction *= -1
+            #if previous wall hit left or right side of screen, make new wall horizontal and switch direction
+            elif self.x <= 0 or self.x >= RESOLUTION[0]:
+                if self.x > RESOLUTION[0]:
+                    self.x = RESOLUTION[0]
+                elif self.x < 0:
+                    self.x = 0
+                self.orientation = "horizontal"
+                self.x_direction *= -1
+            #generate new wall
+            wall = self.generate_wall(None)
+            if wall.get_rect().collidelist(self.walls) > -1:
+                if wall.orientation == "vertical":
+                    wall = self.generate_wall("horizontal")
+                else:
+                    wall = self.generate_wall("vertical")
+                # if wall.get_rect().collidelist(self.walls) > -1:
+                #     break
             if wall.orientation == "vertical":
-                self.x += wall.width
-                self.y -= wall.height
+                self.y -= wall.height * self.y_direction
             else:
-                self.x += wall.width
+                self.x += wall.width * self.x_direction
+            #append new wall to walls list
+            self.walls.append(self.wall.get_rect())
         return self.walls
                 
 
