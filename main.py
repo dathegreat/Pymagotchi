@@ -190,21 +190,7 @@ class Scene:
     def loop(self):
         pass
 
-#defines a single wall in the procedurally generated maze
-class Wall:
-    def __init__(self, x, y, orientation):
-        self.x = x
-        self.y = y
-        self.orientation = orientation
-        #define possible width/height
-        self.short_side = PIXEL * 2
-        self.long_side = PIXEL * 10
-        #set wall to be taller than wide if vertical, else wider than tall
-        self.width = self.short_side if self.orientation == "vertical" else self.long_side
-        self.height = self.long_side if self.orientation == "vertical" else self.short_side
-    #returns the end of the wall, which is used to position the next wall
-    def get_rect(self):
-        return pygame.Rect(self.x, self.y, self.width, self.height)
+
 
 class Maze:
     def __init__(self):
@@ -214,47 +200,47 @@ class Maze:
         self.x = PIXEL * 4
         self.y = RESOLUTION[1] - PIXEL * 4
         self.orientation = "horizontal"
-    def generate_wall(self, orientation):
-        #choose a random orientation for new wall
-        self.orientation = orientation or "vertical" if random.random() > 0.5 else "horizontal"
-        self.wall = Wall(self.x, self.y, self.orientation)
-        #return generated wall
-        return (self.wall)
-    def generate_maze(self):
         self.x_direction = 1
         self.y_direction = 1
-        for i in range(100):
-            #if previous wall hit top or bottom of screen, make new wall vertical and change direction
-            if self.y >= RESOLUTION[1] or self.y <= 0:
-                if self.y > RESOLUTION[1]:
-                    self.y = RESOLUTION[1]
-                elif self.y < 0:
-                    self.y = 0
-                self.orientation = "vertical"
-                self.y_direction *= -1
-            #if previous wall hit left or right side of screen, make new wall horizontal and switch direction
-            elif self.x <= 0 or self.x >= RESOLUTION[0]:
-                if self.x > RESOLUTION[0]:
-                    self.x = RESOLUTION[0]
-                elif self.x < 0:
-                    self.x = 0
-                self.orientation = "horizontal"
-                self.x_direction *= -1
-            #generate new wall
-            wall = self.generate_wall(None)
-            if wall.get_rect().collidelist(self.walls) > -1:
-                if wall.orientation == "vertical":
-                    wall = self.generate_wall("horizontal")
-                else:
-                    wall = self.generate_wall("vertical")
-                # if wall.get_rect().collidelist(self.walls) > -1:
-                #     break
-            if wall.orientation == "vertical":
-                self.y -= wall.height * self.y_direction
+    def move_cursor(self):
+        self.x_step = PIXEL * 2 * self.x_direction
+        self.y_step = PIXEL * 2 * self.y_direction
+        self.wall_spacing = self.x_step
+        #randomly decide whether to jitter along the x or y axis
+        if random.random() < 0.1:
+            if random.random() > 0.5:
+                self.x += self.x_step
             else:
-                self.x += wall.width * self.x_direction
-            #append new wall to walls list
-            self.walls.append(self.wall.get_rect())
+                self.y += self.y_step
+        #move cursor along x axis until wall or self is hit
+        if self.orientation == "horizontal":
+            self.x += self.x_step
+        else:
+            self.y += self.y_step
+        #reverse direction and orientation if wall will be hit in the next few moves
+        if self.x + self.wall_spacing >= RESOLUTION[0] or self.x + self.wall_spacing <= 0:
+            self.x_direction *= -1
+            self.orientation = "vertical"
+        if self.y + self.wall_spacing >= RESOLUTION[1] or self.y + self.wall_spacing <= 0:
+            self.y_direction *= -1
+            self.orientation = "horizontal"
+        #reverse direction if wall will collide with itself in five movements
+        if len(self.walls) >= 2:
+            for i in range(len(self.walls) - 1):
+                if self.orientation == "horizontal":
+                    if pygame.draw.line(screen, WHITE, self.walls[i], self.walls[i+1], int(PIXEL * 2)).collidepoint(self.x + self.wall_spacing, self.y):
+                        self.x_direction *= -1
+                        self.orientation = "vertical"
+                else:
+                    if pygame.draw.line(screen, WHITE, self.walls[i], self.walls[i+1], int(PIXEL * 2)).collidepoint(self.x, self.y + self.wall_spacing):
+                        self.y_direction *= -1
+                        self.orientation = "horizontal"
+                        print(self.walls[i], self.y)
+    def generate_maze(self):
+        #store a point, move the cursor, store new point, etc
+        for i in range(500):
+            self.move_cursor()
+            self.walls.append((self.x, self.y))
         return self.walls
                 
 
@@ -407,8 +393,8 @@ class Home(Scene):
                         ( RESOLUTION[0] - PIXEL * (20 if i < 2 else 10 )) #skip line after two items
                         ])
             if self.flags['mini_game']:
-                for wall in self.walls:
-                    screen.fill(WHITE, wall)
+                screen.fill(BLACK)
+                pygame.draw.lines(screen, WHITE, False, self.walls, int(PIXEL * 2))
             
             #call new frame to render
             pygame.display.flip()
